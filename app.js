@@ -219,6 +219,14 @@ function parseOcrLines(text) {
   return { checklistItems, plainLines };
 }
 
+function linesToChecklistItems(text) {
+  return text.split('\n').map((l) => l.trim()).filter(Boolean).map((line) => {
+    const match = line.match(CHECKBOX_LINE_RE);
+    if (match) return { text: match[2].trim(), done: CHECKED_MARKS.has(match[1]) };
+    return { text: line, done: false };
+  });
+}
+
 let toastTimer = null;
 function showToast(message) {
   clearTimeout(toastTimer);
@@ -423,6 +431,23 @@ function renderEditor() {
     saveData();
   });
 
+  const convertBtn = el('button', {
+    class: 'body-convert-btn',
+    onclick: () => {
+      const start = bodyTextarea.selectionStart;
+      const end = bodyTextarea.selectionEnd;
+      if (start === end) { alert('먼저 체크리스트로 바꿀 글씨를 드래그해서 선택해주세요.'); return; }
+      const selected = bodyTextarea.value.slice(start, end);
+      const items = linesToChecklistItems(selected);
+      if (!items.length) { alert('선택한 부분에 변환할 글씨가 없어요.'); return; }
+      items.forEach((it) => note.checklist.push({ id: uid(), text: it.text, done: it.done }));
+      note.body = (bodyTextarea.value.slice(0, start) + bodyTextarea.value.slice(end)).replace(/\n{3,}/g, '\n\n').trim();
+      saveData();
+      render();
+      showToast(`체크리스트 ${items.length}개로 변환했어요`);
+    },
+  }, icon('check'), '선택한 글씨 체크리스트로 변환');
+
   const paper = el(
     'div', { class: 'editor-paper' },
     el('div', { class: 'editor-cover' },
@@ -431,7 +456,7 @@ function renderEditor() {
     ),
     el('div', { class: 'editor-title' }, titleInput),
     checklistBox,
-    el('div', { class: 'editor-body' }, bodyTextarea)
+    el('div', { class: 'editor-body' }, bodyTextarea, convertBtn)
   );
 
   const scroll = el('div', { class: 'editor-scroll' }, paper, renderImagesSection(note));

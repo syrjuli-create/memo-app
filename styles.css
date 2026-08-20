@@ -373,6 +373,20 @@ button, input, textarea {
   color: var(--ink-soft);
   font-family: inherit;
 }
+.body-convert-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 0;
+  cursor: pointer;
+}
+.body-convert-btn .icon svg { width: 12px; height: 12px; }
 
 /* ---------- images / OCR ---------- */
 .editor-images {
