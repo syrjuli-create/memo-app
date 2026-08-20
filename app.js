@@ -201,6 +201,24 @@ function runOCR(file, onProgress) {
   );
 }
 
+const CHECKBOX_LINE_RE = /^[\s]*(\[[ xX]?\]|[□☐◻▢☑✔✓■✅])\s*(.+)$/;
+const CHECKED_MARKS = new Set(['☑', '✔', '✓', '■', '✅', '[x]', '[X]']);
+function parseOcrLines(text) {
+  const checklistItems = [];
+  const plainLines = [];
+  text.split('\n').forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) return;
+    const match = line.match(CHECKBOX_LINE_RE);
+    if (match) {
+      checklistItems.push({ text: match[2].trim(), done: CHECKED_MARKS.has(match[1]) });
+    } else {
+      plainLines.push(line);
+    }
+  });
+  return { checklistItems, plainLines };
+}
+
 let toastTimer = null;
 function showToast(message) {
   clearTimeout(toastTimer);
@@ -480,9 +498,15 @@ function renderImagesSection(note) {
     }).then((text) => {
       ocrStatus.textContent = '';
       if (!text) { alert('사진에서 글자를 찾지 못했어요.'); return; }
-      note.body = note.body ? note.body + '\n' + text : text;
+      const { checklistItems, plainLines } = parseOcrLines(text);
+      checklistItems.forEach((ci) => note.checklist.push({ id: uid(), text: ci.text, done: ci.done }));
+      const plainText = plainLines.join('\n');
+      if (plainText) note.body = note.body ? note.body + '\n' + plainText : plainText;
       saveData();
       render();
+      if (checklistItems.length && plainText) showToast(`체크리스트 ${checklistItems.length}개와 내용을 추가했어요`);
+      else if (checklistItems.length) showToast(`체크리스트 ${checklistItems.length}개를 추가했어요`);
+      else showToast('본문에 내용을 추가했어요');
     }).catch((err) => {
       ocrStatus.textContent = '';
       alert((err && err.message) || '글자 인식에 실패했습니다.');
