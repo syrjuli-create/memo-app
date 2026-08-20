@@ -42,6 +42,12 @@ function icon(name) { return el('span', { class: 'icon', html: ICONS[name] }); }
  * ------------------------------------------------------------- */
 const STORAGE_KEY = 'memoapp_v1';
 const EMOJI_CHOICES = ['📚', '👥', '💡', '✅', '📝', '🧪', '🌍', '📅', '🎤', '📔', '⭐', '🎯'];
+const FONT_SCALES = [
+  { value: 0.9, label: '작게' },
+  { value: 1, label: '보통' },
+  { value: 1.15, label: '크게' },
+  { value: 1.3, label: '아주 크게' },
+];
 
 function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function todayISO() { return new Date().toISOString().slice(0, 10); }
@@ -56,7 +62,7 @@ function defaultData() {
   const ideaFolder = { id: uid(), name: '아이디어', emoji: '💡' };
   return {
     profile: { name: '나' },
-    settingsData: { theme: 'light', dimDone: true },
+    settingsData: { theme: 'light', dimDone: true, fontScale: 1 },
     folders: [studyFolder, ideaFolder],
     notes: [
       {
@@ -265,6 +271,7 @@ function openLightbox(src) {
 function render() {
   const app = document.getElementById('app');
   document.documentElement.dataset.theme = state.settingsData.theme === 'dark' ? 'dark' : 'light';
+  document.documentElement.style.setProperty('--font-scale', state.settingsData.fontScale || 1);
   app.innerHTML = '';
   const views = { list: renderList, editor: renderEditor, search: renderSearch, folders: renderFolders, settings: renderSettings };
   app.appendChild(views[state.route]());
@@ -701,10 +708,20 @@ function renderSettings() {
     onclick: () => { state.settingsData.dimDone = !state.settingsData.dimDone; saveData(); render(); },
   }, el('span', { class: 'knob' }));
 
+  const fontPicker = el('div', { class: 'font-scale-picker' },
+    ...FONT_SCALES.map((opt, i) => el('button', {
+      class: 'font-scale-btn' + (state.settingsData.fontScale === opt.value ? ' active' : ''),
+      style: `font-size:${13 + i * 2}px`,
+      'aria-label': opt.label,
+      onclick: () => { state.settingsData.fontScale = opt.value; saveData(); render(); },
+    }, '가'))
+  );
+
   const card = el(
     'div', { class: 'settings-card' },
     el('div', { class: 'settings-row' }, el('span', {}, '프로필 이름'), nameInput),
     el('div', { class: 'settings-row' }, el('span', {}, '다크 모드'), themeSwitch),
+    el('div', { class: 'settings-row' }, el('span', {}, '글자 크기'), fontPicker),
     el('div', { class: 'settings-row' }, el('span', {}, '완료된 노트 흐리게 표시'), dimSwitch)
   );
 
