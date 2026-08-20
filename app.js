@@ -31,6 +31,9 @@ const ICONS = {
   trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13"/></svg>',
   gear: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
   notebook: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9a3 3 0 0 1 3 3v15H9a3 3 0 0 1-3-3V3z"/><line x1="9" y1="7" x2="14" y2="7"/><line x1="9" y1="11" x2="14" y2="11"/><line x1="4" y1="6" x2="4" y2="21"/></svg>',
+  camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="14" r="3.5"/></svg>',
+  scan: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8V5a1 1 0 0 1 1-1h3"/><path d="M20 8V5a1 1 0 0 0-1-1h-3"/><path d="M4 16v3a1 1 0 0 0 1 1h3"/><path d="M20 16v3a1 1 0 0 0-1 1h-3"/><line x1="7" y1="12" x2="17" y2="12"/></svg>',
+  close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>',
 };
 function icon(name) { return el('span', { class: 'icon', html: ICONS[name] }); }
 
@@ -63,8 +66,9 @@ function defaultData() {
         folderId: ideaFolder.id,
         emoji: '📝',
         done: false,
-        body: '왼쪽 아래 + 버튼을 누르면 새 노트가 만들어져요.\n목록에서 동그라미를 누르면 완료 표시를 할 수 있어요.\n체크리스트 항목은 아래 "+ 항목 추가"로 늘릴 수 있어요.',
+        body: '왼쪽 아래 + 버튼을 누르면 새 노트가 만들어져요.\n목록에서 동그라미를 누르면 완료 표시를 할 수 있어요.\n체크리스트 항목은 아래 "+ 항목 추가"로 늘릴 수 있어요.\n사진 추가로 이미지를 첨부하거나, 글자 인식으로 사진 속 글자를 본문에 넣을 수도 있어요.',
         checklist: [{ id: uid(), text: '첫 노트 만들어보기', done: false }],
+        images: [],
       },
     ],
   };
@@ -80,7 +84,11 @@ function loadData() {
       profile: parsed.profile && typeof parsed.profile.name === 'string' ? parsed.profile : base.profile,
       settingsData: Object.assign({}, base.settingsData, parsed.settingsData || {}),
       folders: Array.isArray(parsed.folders) ? parsed.folders : base.folders,
-      notes: Array.isArray(parsed.notes) ? parsed.notes : base.notes,
+      notes: (Array.isArray(parsed.notes) ? parsed.notes : base.notes).map(n => ({
+        ...n,
+        checklist: Array.isArray(n.checklist) ? n.checklist : [],
+        images: Array.isArray(n.images) ? n.images : [],
+      })),
     };
   } catch (err) {
     console.warn('저장된 데이터를 읽지 못해 기본값으로 시작합니다.', err);
@@ -88,13 +96,21 @@ function loadData() {
   }
 }
 
+function persistNow() {
+  try {
+    const { profile, settingsData, folders, notes } = state;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ profile, settingsData, folders, notes }));
+    return true;
+  } catch (err) {
+    console.warn('저장 실패', err);
+    return false;
+  }
+}
+
 let saveTimer = null;
 function saveData() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    const { profile, settingsData, folders, notes } = state;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ profile, settingsData, folders, notes }));
-  }, 150);
+  saveTimer = setTimeout(persistNow, 150);
 }
 
 const state = Object.assign(
@@ -119,7 +135,7 @@ function visibleNotes() {
 }
 
 function isNoteEmpty(n) {
-  return !n.title.trim() && !n.body.trim() && n.checklist.length === 0;
+  return !n.title.trim() && !n.body.trim() && n.checklist.length === 0 && n.images.length === 0;
 }
 
 function highlightNodes(text, query) {
@@ -127,6 +143,71 @@ function highlightNodes(text, query) {
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
   if (idx === -1) return [text];
   return [text.slice(0, idx), el('mark', {}, text.slice(idx, idx + query.length)), text.slice(idx + query.length)];
+}
+
+/* ---------------------------------------------------------------
+ * 이미지 첨부 / OCR
+ * ------------------------------------------------------------- */
+function compressImageFile(file, maxDim = 1400, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error || new Error('파일을 읽지 못했습니다.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('이미지를 불러오지 못했습니다.'));
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const scale = maxDim / Math.max(width, height);
+          width = Math.round(width * scale);
+          height = Math.round(height * scale);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+const TESSERACT_SRC = 'https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';
+let tesseractLoadPromise = null;
+function ensureTesseractLoaded() {
+  if (window.Tesseract) return Promise.resolve();
+  if (tesseractLoadPromise) return tesseractLoadPromise;
+  tesseractLoadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = TESSERACT_SRC;
+    script.onload = () => resolve();
+    script.onerror = () => { tesseractLoadPromise = null; reject(new Error('OCR 엔진을 불러오지 못했어요. 인터넷 연결을 확인해주세요.')); };
+    document.head.appendChild(script);
+  });
+  return tesseractLoadPromise;
+}
+
+function runOCR(file, onProgress) {
+  return ensureTesseractLoaded().then(() =>
+    window.Tesseract.recognize(file, 'kor+eng', {
+      logger: (m) => {
+        if (!onProgress) return;
+        if (m.status === 'recognizing text' && typeof m.progress === 'number') onProgress(Math.round(m.progress * 100));
+        else onProgress(null, m.status);
+      },
+    }).then((result) => result.data.text.trim())
+  );
+}
+
+function openLightbox(src) {
+  const overlay = el(
+    'div', { class: 'lightbox', onclick: () => overlay.remove() },
+    el('img', { src, alt: '첨부 이미지 원본' }),
+    el('button', { class: 'lightbox-close', 'aria-label': '닫기', onclick: () => overlay.remove() }, icon('close'))
+  );
+  document.body.appendChild(overlay);
 }
 
 /* ---------------------------------------------------------------
@@ -224,6 +305,7 @@ function createNote() {
     done: false,
     body: '',
     checklist: [],
+    images: [],
   };
   state.notes.unshift(note);
   state.editingNoteId = note.id;
@@ -320,8 +402,79 @@ function renderEditor() {
     el('div', { class: 'editor-body' }, bodyTextarea)
   );
 
-  const scroll = el('div', { class: 'editor-scroll' }, paper);
+  const scroll = el('div', { class: 'editor-scroll' }, paper, renderImagesSection(note));
   return el('section', { class: 'view' }, header, scroll);
+}
+
+function renderImagesSection(note) {
+  const box = el('div', { class: 'editor-images' });
+
+  if (note.images.length) {
+    const grid = el('div', { class: 'image-grid' });
+    note.images.forEach((img) => {
+      grid.appendChild(el(
+        'div', { class: 'image-thumb' },
+        el('img', { src: img.dataUrl, alt: '첨부 이미지', onclick: () => openLightbox(img.dataUrl) }),
+        el('button', {
+          class: 'image-del', 'aria-label': '이미지 삭제',
+          onclick: (e) => { e.stopPropagation(); note.images = note.images.filter(x => x.id !== img.id); saveData(); render(); },
+        }, '×')
+      ));
+    });
+    box.appendChild(grid);
+  }
+
+  const photoInput = el('input', { type: 'file', accept: 'image/*', multiple: true, class: 'hidden-file-input' });
+  photoInput.addEventListener('change', async (e) => {
+    const files = [...e.target.files];
+    e.target.value = '';
+    for (const file of files) {
+      try {
+        const dataUrl = await compressImageFile(file);
+        note.images.push({ id: uid(), dataUrl });
+        if (!persistNow()) {
+          note.images.pop();
+          alert('저장 공간이 부족해요. 사진 몇 개를 지우고 다시 시도해주세요.');
+          break;
+        }
+      } catch (err) {
+        alert('이미지를 불러오지 못했습니다: ' + (err && err.message ? err.message : err));
+      }
+    }
+    render();
+  });
+
+  const ocrStatus = el('span', { class: 'ocr-status' });
+  const ocrInput = el('input', { type: 'file', accept: 'image/*', class: 'hidden-file-input' });
+  ocrInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    ocrStatus.textContent = 'OCR 엔진 준비 중…';
+    runOCR(file, (pct, status) => {
+      if (typeof pct === 'number') ocrStatus.textContent = `글자 인식 중… ${pct}%`;
+      else if (status) ocrStatus.textContent = status;
+    }).then((text) => {
+      ocrStatus.textContent = '';
+      if (!text) { alert('사진에서 글자를 찾지 못했어요.'); return; }
+      note.body = note.body ? note.body + '\n' + text : text;
+      saveData();
+      render();
+    }).catch((err) => {
+      ocrStatus.textContent = '';
+      alert((err && err.message) || '글자 인식에 실패했습니다.');
+    });
+  });
+
+  box.appendChild(el(
+    'div', { class: 'image-actions' },
+    el('button', { class: 'image-action-btn', onclick: () => photoInput.click() }, icon('camera'), '사진 추가'),
+    el('button', { class: 'image-action-btn', onclick: () => ocrInput.click() }, icon('scan'), '글자 인식'),
+    ocrStatus,
+    photoInput,
+    ocrInput
+  ));
+  return box;
 }
 
 /* ---- 검색 화면 ---- */
