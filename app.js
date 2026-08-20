@@ -201,6 +201,20 @@ function runOCR(file, onProgress) {
   );
 }
 
+let toastTimer = null;
+function showToast(message) {
+  clearTimeout(toastTimer);
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+  const toast = el('div', { class: 'toast' }, message);
+  document.body.appendChild(toast);
+  requestAnimationFrame(() => toast.classList.add('show'));
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 200);
+  }, 1400);
+}
+
 function openLightbox(src) {
   const overlay = el(
     'div', { class: 'lightbox', onclick: () => overlay.remove() },
@@ -417,7 +431,13 @@ function renderImagesSection(note) {
         el('img', { src: img.dataUrl, alt: '첨부 이미지', onclick: () => openLightbox(img.dataUrl) }),
         el('button', {
           class: 'image-del', 'aria-label': '이미지 삭제',
-          onclick: (e) => { e.stopPropagation(); note.images = note.images.filter(x => x.id !== img.id); saveData(); render(); },
+          onclick: (e) => {
+            e.stopPropagation();
+            note.images = note.images.filter(x => x.id !== img.id);
+            saveData();
+            render();
+            showToast('사진을 삭제했어요');
+          },
         }, '×')
       ));
     });
@@ -428,6 +448,7 @@ function renderImagesSection(note) {
   photoInput.addEventListener('change', async (e) => {
     const files = [...e.target.files];
     e.target.value = '';
+    let added = 0;
     for (const file of files) {
       try {
         const dataUrl = await compressImageFile(file);
@@ -437,11 +458,13 @@ function renderImagesSection(note) {
           alert('저장 공간이 부족해요. 사진 몇 개를 지우고 다시 시도해주세요.');
           break;
         }
+        added += 1;
       } catch (err) {
         alert('이미지를 불러오지 못했습니다: ' + (err && err.message ? err.message : err));
       }
     }
     render();
+    if (added > 0) showToast(added > 1 ? `사진 ${added}장을 저장했어요` : '사진을 저장했어요');
   });
 
   const ocrStatus = el('span', { class: 'ocr-status' });
