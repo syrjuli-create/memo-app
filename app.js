@@ -201,17 +201,27 @@ function runOCR(file, onProgress) {
   );
 }
 
-const CHECKBOX_LINE_RE = /^[\s]*(\[[ xX]?\]|[□☐◻▢☑✔✓■✅])\s*(.+)$/;
-const CHECKED_MARKS = new Set(['☑', '✔', '✓', '■', '✅', '[x]', '[X]']);
+const CHECKBOX_SYMBOL_RE = /^[\s]*(\[[ xX]?\]|[□☐◻▢☑✔✓■✅○◯])\s*(.+)$/;
+const CHECKBOX_BULLET_RE = /^[Oo]\s+(.+)$/;
+// 이미지 속 체크박스/글머리표(□, O, ☑ 등)는 빈 상태로 보이더라도
+// 저장할 때는 완료(체크됨) 상태로 채워 넣는다.
+function matchChecklistLine(line) {
+  const symbolMatch = line.match(CHECKBOX_SYMBOL_RE);
+  if (symbolMatch) return symbolMatch[2].trim();
+  const bulletMatch = line.match(CHECKBOX_BULLET_RE);
+  if (bulletMatch) return bulletMatch[1].trim();
+  return null;
+}
+
 function parseOcrLines(text) {
   const checklistItems = [];
   const plainLines = [];
   text.split('\n').forEach((rawLine) => {
     const line = rawLine.trim();
     if (!line) return;
-    const match = line.match(CHECKBOX_LINE_RE);
-    if (match) {
-      checklistItems.push({ text: match[2].trim(), done: CHECKED_MARKS.has(match[1]) });
+    const rest = matchChecklistLine(line);
+    if (rest !== null) {
+      checklistItems.push({ text: rest, done: true });
     } else {
       plainLines.push(line);
     }
@@ -221,8 +231,8 @@ function parseOcrLines(text) {
 
 function linesToChecklistItems(text) {
   return text.split('\n').map((l) => l.trim()).filter(Boolean).map((line) => {
-    const match = line.match(CHECKBOX_LINE_RE);
-    if (match) return { text: match[2].trim(), done: CHECKED_MARKS.has(match[1]) };
+    const rest = matchChecklistLine(line);
+    if (rest !== null) return { text: rest, done: true };
     return { text: line, done: false };
   });
 }
